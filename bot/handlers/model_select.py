@@ -73,10 +73,13 @@ def _status_text(
     settings: Settings,
     catalog: list[str],
     page: int,
+    user_id: int,
 ) -> str:
     total_pages = max(1, (len(catalog) + PAGE_SIZE - 1) // PAGE_SIZE)
     return (
         f"Текущая модель: <b>{current}</b>\n"
+        f"Привязка: ваш user_id <code>{user_id}</code> "
+        f"(не к чату/группе)\n"
         f"Список с провайдера <code>/v1/models</code> ({len(catalog)} шт.), "
         f"стр. {page + 1}/{total_pages}\n"
         f"Без выбора: <b>{settings.openai_model}</b> из .env"
@@ -101,7 +104,7 @@ async def cmd_model(
     catalog = await model_catalog_service.fetch_catalog(openai_client, settings)
     current = await user_model_store.get_model(message.from_user.id)
     await message.answer(
-        _status_text(current, settings, catalog, 0),
+        _status_text(current, settings, catalog, 0, message.from_user.id),
         reply_markup=_keyboard(catalog, current, settings, 0),
     )
 
@@ -127,7 +130,7 @@ async def on_model_page(
     catalog = await model_catalog_service.fetch_catalog(openai_client, settings)
     current = await user_model_store.get_model(callback.from_user.id)
     await callback.message.edit_text(
-        _status_text(current, settings, catalog, page),
+        _status_text(current, settings, catalog, page, callback.from_user.id),
         reply_markup=_keyboard(catalog, current, settings, page),
     )
     await callback.answer()
@@ -150,7 +153,7 @@ async def on_model_refresh(
     )
     current = await user_model_store.get_model(callback.from_user.id)
     await callback.message.edit_text(
-        _status_text(current, settings, catalog, 0),
+        _status_text(current, settings, catalog, 0, callback.from_user.id),
         reply_markup=_keyboard(catalog, current, settings, 0),
     )
     await callback.answer("Список обновлён")
@@ -189,7 +192,7 @@ async def on_model_pick(
         await user_model_store.set_model(callback.from_user.id, chosen)
 
     await callback.message.edit_text(
-        _status_text(chosen, settings, catalog, page),
+        _status_text(chosen, settings, catalog, page, callback.from_user.id),
         reply_markup=_keyboard(catalog, chosen, settings, page),
     )
     await callback.answer(f"Выбрано: {chosen}")

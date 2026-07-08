@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 
 
 class UserModelStore:
+    """Per Telegram user_id model choice (not per chat/group)."""
+
     def __init__(self, path: Path, default_model: str) -> None:
         self._path = path
         self._default_model = default_model

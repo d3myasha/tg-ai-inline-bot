@@ -32,7 +32,7 @@ async def build_model_picker_results(
             InlineQueryResultArticle(
                 id=catalog_service.inline_result_id(name),
                 title=f"{name}{mark}"[:64],
-                description="Выбрать для чата и inline",
+                description="Только для вашего user_id (не для группы)",
                 input_message_content=InputTextMessageContent(
                     message_text=f"Модель: {name}",
                 ),

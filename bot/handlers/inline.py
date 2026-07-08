@@ -151,8 +151,8 @@ async def handle_inline_query(
                     input_message_content=InputTextMessageContent(
                         message_text=(
                             f"Текущая модель: {current}. "
-                            "Выбор сохраняется для всех чатов. "
-                            "Сменить: @бот model"
+                            "Модель привязана к вашему аккаунту (user_id), "
+                            "не к чату/группе. Сменить: @бот model"
                         ),
                     ),
                 ),

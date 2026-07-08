@@ -37,7 +37,7 @@ docker compose up -d
 | `MODELS_CACHE_TTL_SECONDS` | нет | Кэш списка моделей, по умолчанию 300 |
 | `ALLOWED_TELEGRAM_USER_IDS` | нет | ID через запятую; пусто = все |
 
-**Выбор модели:** `/model` или inline `@бот model` — список с провайдера **`GET {OPENAI_BASE_URL}/models`**. Кнопка «Обновить список». Без выбора — `OPENAI_MODEL`. Хранится в `bot-data` (`/data/user_models.json`).
+**Выбор модели:** `/model` или inline `@бот model` — список с провайдера **`GET {OPENAI_BASE_URL}/models`**. Модель **привязана к Telegram user_id** (ваш аккаунт), не к чату/группе: в личке, в группе и в inline у вас одна модель; у другого пользователя — своя. Файл: `bot-data` → `/data/user_models.json` (`{"1042345006": "gc/grok-build", ...}`).
 
 ## Разработка
 
