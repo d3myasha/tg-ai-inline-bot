@@ -1,6 +1,6 @@
 # tg-ai-inline-bot
 
-Inline Telegram-бот с OpenAI-совместимым API (aiogram 3, long polling).
+Telegram-бот с OpenAI-совместимым API: обычный чат в личке/группе (aiogram 3, long polling).
 
 ## Запуск за 3 шага
 
@@ -23,8 +23,7 @@ docker compose up -d
 
 ## BotFather
 
-1. Токен бота.
-2. `/setinline` — включить inline (placeholder, например: `Спроси ИИ…`).
+Создай бота и возьми токен. Inline-режим сейчас не используется.
 
 ## Переменные `.env`
 

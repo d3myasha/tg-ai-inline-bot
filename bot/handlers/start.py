@@ -8,6 +8,6 @@ router = Router(name="start")
 @router.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     await message.answer(
-        "Привет! В любом чате набери @имя_бота и свой вопрос — ответ придёт inline.\n"
-        "В BotFather должен быть включён inline: /setinline."
+        "Привет! Напиши сообщение в этот чат — отвечу через подключённую нейросеть.\n"
+        "Команда /start — эта подсказка."
     )
