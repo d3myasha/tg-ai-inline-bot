@@ -19,6 +19,7 @@ from bot.handlers.model_inline import (
     is_model_picker_query,
 )
 from bot.services.llm import complete_chat, truncate_for_telegram
+from bot.services.model_catalog import ModelCatalogService
 from bot.services.user_models import UserModelStore
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,7 @@ router = Router(name="inline")
 async def on_chosen_inline_result(
     chosen: ChosenInlineResult,
     settings: Settings,
+    model_catalog_service: ModelCatalogService,
     user_model_store: UserModelStore,
 ) -> None:
     user = chosen.from_user
@@ -39,6 +41,7 @@ async def on_chosen_inline_result(
     applied = await apply_chosen_inline_model(
         chosen.result_id,
         settings,
+        model_catalog_service,
         user_model_store,
         user.id,
     )
@@ -52,6 +55,7 @@ async def handle_inline_query(
     settings: Settings,
     openai_client: AsyncOpenAI,
     user_model_store: UserModelStore,
+    model_catalog_service: ModelCatalogService,
 ) -> None:
     query = (inline_query.query or "").strip()
     user = inline_query.from_user
@@ -74,8 +78,15 @@ async def handle_inline_query(
         return
 
     if is_model_picker_query(query):
+        catalog = await model_catalog_service.fetch_catalog(
+            openai_client, settings
+        )
         results = await build_model_picker_results(
-            settings, user_model_store, user.id
+            catalog,
+            model_catalog_service,
+            settings,
+            user_model_store,
+            user.id,
         )
         await inline_query.answer(
             results=results,

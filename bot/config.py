@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     available_models: str = Field(
         default="",
         validation_alias="AVAILABLE_MODELS",
+        description="Optional whitelist; empty = all from GET /v1/models",
+    )
+    models_cache_ttl_seconds: int = Field(
+        default=300,
+        validation_alias="MODELS_CACHE_TTL_SECONDS",
     )
     user_models_path: str = Field(
         default="/data/user_models.json",
@@ -46,23 +51,6 @@ class Settings(BaseSettings):
                 continue
             ids.add(int(part))
         return ids
-
-    def model_catalog(self) -> list[str]:
-        raw = self.available_models.strip()
-        if not raw:
-            return [self.openai_model]
-        models: list[str] = []
-        seen: set[str] = set()
-        for part in raw.split(","):
-            name = part.strip()
-            if not name or name in seen:
-                continue
-            seen.add(name)
-            models.append(name)
-        if self.openai_model not in seen:
-            models.insert(0, self.openai_model)
-        return models
-
 
 @lru_cache
 def get_settings() -> Settings:

@@ -33,10 +33,11 @@ docker compose up -d
 | `OPENAI_API_KEY` | да | Ключ API |
 | `OPENAI_BASE_URL` | нет | По умолчанию `https://api.openai.com/v1` |
 | `OPENAI_MODEL` | нет | Модель по умолчанию, если пользователь не выбрал в `/model` |
-| `AVAILABLE_MODELS` | нет | Список для меню `/model` через запятую |
+| `AVAILABLE_MODELS` | нет | Фильтр поверх списка с `GET /v1/models` (пусто = все) |
+| `MODELS_CACHE_TTL_SECONDS` | нет | Кэш списка моделей, по умолчанию 300 |
 | `ALLOWED_TELEGRAM_USER_IDS` | нет | ID через запятую; пусто = все |
 
-Команда **`/model`** — кнопки выбора модели. Выбор сохраняется (volume `bot-data`, файл `/data/user_models.json`). Inline и чат используют одну выбранную модель на пользователя.
+**Выбор модели:** `/model` или inline `@бот model` — список с провайдера **`GET {OPENAI_BASE_URL}/models`**. Кнопка «Обновить список». Без выбора — `OPENAI_MODEL`. Хранится в `bot-data` (`/data/user_models.json`).
 
 ## Разработка
 
