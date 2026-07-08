@@ -10,6 +10,7 @@ from bot.config import get_settings
 from bot.handlers import setup_routers
 from bot.middleware import InjectDependenciesMiddleware
 from bot.services.llm import create_openai_client
+from bot.services.inline_pending import InlinePendingStore
 from bot.services.model_catalog import create_model_catalog_service
 from bot.services.user_models import create_user_model_store
 
@@ -26,6 +27,7 @@ async def main() -> None:
     user_model_store = create_user_model_store(settings)
     await user_model_store.ensure_loaded()
     model_catalog_service = create_model_catalog_service(settings)
+    inline_pending_store = InlinePendingStore(ttl_seconds=600)
 
     bot = Bot(
         token=settings.telegram_bot_token,
@@ -38,6 +40,7 @@ async def main() -> None:
             openai_client=openai_client,
             user_model_store=user_model_store,
             model_catalog_service=model_catalog_service,
+            inline_pending_store=inline_pending_store,
         ),
     )
     dp.include_router(setup_routers())
