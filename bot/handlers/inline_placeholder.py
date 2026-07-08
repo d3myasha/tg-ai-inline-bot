@@ -15,16 +15,25 @@ logger = logging.getLogger(__name__)
 router = Router(name="inline_placeholder")
 
 _PLACEHOLDER_MARKERS = ("Генерирую ответ", "⏳")
-_QUESTION_PLAIN = re.compile(r"^\*\*Вопрос:\*\*\s*(.+?)(?:\n\n|\Z)", re.DOTALL)
-_QUESTION_HTML = re.compile(r"<b>Вопрос:</b>\s*(.+?)(?:\n\n|\Z)", re.DOTALL | re.IGNORECASE)
+_QUESTION_PLAIN = re.compile(
+    r"(?:\*\*Вопрос:\*\*|<b>Вопрос:</b>|Вопрос:)\s*(.+?)(?:\n\n|\Z)", re.DOTALL | re.IGNORECASE,
+)
 
 
 def _extract_query(text: str) -> str | None:
+    """В полученном сообщении текст уже без HTML-тегов и Markdown-обёртки."""
     text = text.strip()
-    for pattern in (_QUESTION_HTML, _QUESTION_PLAIN):
-        m = pattern.search(text)
-        if m:
-            return m.group(1).strip()
+    m = _QUESTION_PLAIN.search(text)
+    if m:
+        query = m.group(1).strip()
+        if query:
+            return query
+
+    lines = text.splitlines()
+    if lines and "Генерирую" in lines[-1]:
+        possible = lines[0].strip()
+        if possible and not possible.startswith("Генерирую"):
+            return possible
     return None
 
 

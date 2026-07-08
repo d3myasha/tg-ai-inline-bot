@@ -155,6 +155,35 @@ async def handle_inline_query(
     model = await user_model_store.get_model(user.id)
 
     result_id = deferred_result_id(user.id, query)
+
+    if await inline_pending_store.get(result_id) is not None:
+        logger.debug("Duplicate inline_query for %s, LLM already running", result_id)
+        existing_job = await inline_pending_store.get(result_id)
+        if existing_job is not None:
+            existing_job.created_at = time.monotonic()
+        placeholder, p_mode = llm_text_for_inline(
+            "⏳ Генерирую ответ…", user_query=query,
+        )
+        title = query if len(query) <= 64 else query[:61] + "..."
+        try:
+            await inline_query.answer(
+                results=[InlineQueryResultArticle(
+                    id=result_id,
+                    title=title,
+                    description="Нажми — ответ появится в чате",
+                    input_message_content=InputTextMessageContent(
+                        message_text=placeholder, parse_mode=p_mode,
+                    ),
+                )],
+                cache_time=0,
+                is_personal=True,
+            )
+        except TelegramBadRequest as exc:
+            if "query is too old" in str(exc).lower():
+                return
+            raise
+        return
+
     job = InlineAiJob(
         query=query,
         model=model,
