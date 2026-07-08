@@ -4,6 +4,7 @@ import uuid
 from aiogram import Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import (
+    ChosenInlineResult,
     InlineQuery,
     InlineQueryResultArticle,
     InputTextMessageContent,
@@ -12,12 +13,37 @@ from openai import AsyncOpenAI
 
 from bot.config import Settings
 from bot.handlers.access import is_user_allowed
+from bot.handlers.model_inline import (
+    apply_chosen_inline_model,
+    build_model_picker_results,
+    is_model_picker_query,
+)
 from bot.services.llm import complete_chat, truncate_for_telegram
 from bot.services.user_models import UserModelStore
 
 logger = logging.getLogger(__name__)
 
 router = Router(name="inline")
+
+
+@router.chosen_inline_result()
+async def on_chosen_inline_result(
+    chosen: ChosenInlineResult,
+    settings: Settings,
+    user_model_store: UserModelStore,
+) -> None:
+    user = chosen.from_user
+    if user is None or not is_user_allowed(settings, user.id):
+        return
+
+    applied = await apply_chosen_inline_model(
+        chosen.result_id,
+        settings,
+        user_model_store,
+        user.id,
+    )
+    if applied is not None:
+        logger.info("User %s selected model via inline: %s", user.id, applied)
 
 
 @router.inline_query()
@@ -28,17 +54,8 @@ async def handle_inline_query(
     user_model_store: UserModelStore,
 ) -> None:
     query = (inline_query.query or "").strip()
-    if not query:
-        await inline_query.answer(
-            results=[],
-            switch_pm_text="Открыть бота",
-            switch_pm_parameter="start",
-            cache_time=1,
-            is_personal=True,
-        )
-        return
-
     user = inline_query.from_user
+
     if user is None or not is_user_allowed(settings, user.id):
         await inline_query.answer(
             results=[
@@ -53,6 +70,19 @@ async def handle_inline_query(
             ],
             cache_time=1,
             is_personal=True,
+        )
+        return
+
+    if is_model_picker_query(query):
+        results = await build_model_picker_results(
+            settings, user_model_store, user.id
+        )
+        await inline_query.answer(
+            results=results,
+            cache_time=10,
+            is_personal=True,
+            switch_pm_text="Чат с ботом",
+            switch_pm_parameter="start",
         )
         return
 
