@@ -16,7 +16,7 @@ _MODEL_MSG = re.compile(r"^Модель:\s*(.+)$", re.IGNORECASE)
 _DEFAULT_MSG = re.compile(r"^Модель по умолчанию:\s*(.+)$", re.IGNORECASE)
 
 
-@router.message(F.text)
+@router.message(F.text.startswith("Модель"))
 async def save_model_from_inline_message(
     message: Message,
     settings: Settings,
