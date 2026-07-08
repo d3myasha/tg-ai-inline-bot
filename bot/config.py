@@ -32,7 +32,11 @@ class Settings(BaseSettings):
         validation_alias="USER_MODELS_PATH",
     )
     assistant_system_prompt: str = Field(
-        default="You are a helpful assistant. Answer concisely in the user's language.",
+        default=(
+            "You are a helpful assistant. Answer in the user's language. "
+            "Use Telegram-friendly Markdown: **bold**, lists with -, "
+            "`inline code`, fenced ```code blocks```. Avoid complex HTML."
+        ),
         validation_alias="ASSISTANT_SYSTEM_PROMPT",
     )
     allowed_telegram_user_ids: str = Field(

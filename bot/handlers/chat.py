@@ -7,7 +7,8 @@ from openai import AsyncOpenAI
 
 from bot.config import Settings
 from bot.handlers.access import is_user_allowed
-from bot.services.llm import complete_chat, truncate_for_telegram
+from bot.services.llm import complete_chat
+from bot.services.telegram_send import reply_llm_text
 from bot.services.user_models import UserModelStore
 
 logger = logging.getLogger(__name__)
@@ -49,4 +50,4 @@ async def handle_text_message(
         )
         return
 
-    await message.answer(truncate_for_telegram(answer_text))
+    await reply_llm_text(message, answer_text)

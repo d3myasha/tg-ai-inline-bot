@@ -18,7 +18,9 @@ from bot.handlers.model_inline import (
     build_model_picker_results,
     is_model_picker_query,
 )
-from bot.services.llm import complete_chat, truncate_for_telegram
+from bot.services.llm import complete_chat
+from bot.services.telegram_format import plain_preview
+from bot.services.telegram_send import llm_text_for_inline
 from bot.services.model_catalog import ModelCatalogService
 from bot.services.user_models import UserModelStore
 
@@ -109,11 +111,9 @@ async def handle_inline_query(
             "Не удалось получить ответ от API. Проверь ключ, base URL и модель."
         )
 
-    answer_text = truncate_for_telegram(answer_text)
+    message_text, parse_mode = llm_text_for_inline(answer_text)
     title = query if len(query) <= 64 else query[:61] + "..."
-    description = (
-        answer_text[:256] if len(answer_text) <= 256 else answer_text[:253] + "..."
-    )
+    description = plain_preview(answer_text)
 
     try:
         await inline_query.answer(
@@ -123,7 +123,8 @@ async def handle_inline_query(
                     title=title,
                     description=description,
                     input_message_content=InputTextMessageContent(
-                        message_text=answer_text,
+                        message_text=message_text,
+                        parse_mode=parse_mode,
                     ),
                 )
             ],
