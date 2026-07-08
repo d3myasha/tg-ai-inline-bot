@@ -23,7 +23,7 @@ docker compose up -d
 
 ## BotFather
 
-Токен бота. Для inline: `/setinline`, placeholder. Для сохранения выбора модели из inline: в BotFather включи **inline feedback** (Collecting feedback).
+Токен бота. Для inline: `/setinline`, placeholder. **Обязательно** включи **inline feedback** (Collecting feedback) — без этого бот не получит `inline_message_id` и не сможет заменить «⏳ Генерирую ответ…» на ответ модели.
 
 ## Переменные `.env`
 

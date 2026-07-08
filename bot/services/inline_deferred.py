@@ -32,10 +32,22 @@ async def _edit_target(
         kwargs["chat_id"] = job.chat_id
         kwargs["message_id"] = job.message_id
     else:
+        logger.warning(
+            "inline deliver skipped: no target user=%s query=%r",
+            job.user_id,
+            job.query[:80],
+        )
         return False
 
     try:
         await bot.edit_message_text(**kwargs)
+        logger.info(
+            "inline deliver ok user=%s inline_id=%s chat=%s msg=%s",
+            job.user_id,
+            job.inline_message_id,
+            job.chat_id,
+            job.message_id,
+        )
         return True
     except TelegramBadRequest as exc:
         logger.warning("edit_message_text failed: %s", exc)
@@ -46,19 +58,20 @@ async def _edit_target(
                 )
                 kwargs["parse_mode"] = ParseMode.NONE
                 await bot.edit_message_text(**kwargs)
+                logger.info("inline deliver ok (plain fallback) user=%s", job.user_id)
                 return True
-            except TelegramBadRequest:
-                logger.warning("plain edit also failed")
+            except TelegramBadRequest as exc2:
+                logger.warning("plain edit also failed: %s", exc2)
         return False
 
 
-async def try_deliver_inline_job(bot: Bot, job: InlineAiJob) -> None:
+async def try_deliver_inline_job(bot: Bot, job: InlineAiJob) -> bool:
     async with job._deliver_lock:
         if job.answer is None and job.error is None:
-            return
+            return False
         body = job.answer if job.answer is not None else job.error or ""
         text, parse_mode = llm_text_for_inline(body, user_query=job.query)
-        await _edit_target(bot, job, text, parse_mode)
+        return await _edit_target(bot, job, text, parse_mode)
 
 
 async def run_inline_llm(
@@ -82,6 +95,15 @@ async def run_inline_llm(
             job.query,
             model=job.model,
         )
+        logger.info(
+            "LLM inline done user=%s query=%r len=%s",
+            job.user_id,
+            job.query[:80],
+            len(job.answer or ""),
+        )
+    except asyncio.CancelledError:
+        logger.info("LLM inline cancelled user=%s query=%r", job.user_id, job.query[:80])
+        raise
     except Exception:
         logger.exception("Deferred inline LLM failed")
         job.error = "Не удалось получить ответ от API."
@@ -90,8 +112,7 @@ async def run_inline_llm(
     if stored is not job:
         return
 
-    await try_deliver_inline_job(bot, job)
-    if job.inline_message_id or (job.chat_id is not None and job.message_id is not None):
+    if await try_deliver_inline_job(bot, job):
         await inline_pending_store.pop(result_id)
 
 
@@ -103,7 +124,9 @@ def schedule_inline_llm(
     openai_client: AsyncOpenAI,
     inline_pending_store: InlinePendingStore,
 ) -> None:
-    asyncio.create_task(
+    if job.llm_task and not job.llm_task.done():
+        job.llm_task.cancel()
+    job.llm_task = asyncio.create_task(
         run_inline_llm(
             bot,
             result_id,
@@ -119,6 +142,7 @@ async def attach_inline_target_and_deliver(
     bot: Bot,
     result_id: str,
     job: InlineAiJob,
+    inline_pending_store: InlinePendingStore,
     *,
     inline_message_id: str | None = None,
     chat_id: int | None = None,
@@ -130,4 +154,5 @@ async def attach_inline_target_and_deliver(
         job.chat_id = chat_id
     if message_id is not None:
         job.message_id = message_id
-    await try_deliver_inline_job(bot, job)
+    if await try_deliver_inline_job(bot, job):
+        await inline_pending_store.pop(result_id)

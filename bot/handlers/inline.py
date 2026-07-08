@@ -1,4 +1,3 @@
-import hashlib
 import logging
 import time
 import uuid
@@ -7,6 +6,8 @@ from aiogram import Bot, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import (
     ChosenInlineResult,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
     InlineQuery,
     InlineQueryResultArticle,
     InputTextMessageContent,
@@ -24,6 +25,7 @@ from bot.services.inline_deferred import (
     attach_inline_target_and_deliver,
     schedule_inline_llm,
 )
+from bot.services.inline_ids import DEFERRED_PREFIX, deferred_result_id
 from bot.services.inline_pending import InlineAiJob, InlinePendingStore
 from bot.services.model_catalog import ModelCatalogService
 from bot.services.telegram_send import llm_text_for_inline
@@ -33,12 +35,30 @@ logger = logging.getLogger(__name__)
 
 router = Router(name="inline")
 
-DEFERRED_PREFIX = "def:"
+_DEFERRED_REPLY_MARKUP = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="⏳ Генерирую…", callback_data="def:noop")],
+    ],
+)
 
 
-def deferred_result_id(user_id: int, query: str) -> str:
-    digest = hashlib.sha256(f"{user_id}:{query}".encode()).hexdigest()[:24]
-    return f"{DEFERRED_PREFIX}{digest}"
+def _deferred_article(
+    result_id: str,
+    query: str,
+    placeholder: str,
+    p_mode,
+) -> InlineQueryResultArticle:
+    title = query if len(query) <= 64 else query[:61] + "..."
+    return InlineQueryResultArticle(
+        id=result_id,
+        title=title,
+        description="Нажми — ответ появится в чате",
+        reply_markup=_DEFERRED_REPLY_MARKUP,
+        input_message_content=InputTextMessageContent(
+            message_text=placeholder,
+            parse_mode=p_mode,
+        ),
+    )
 
 
 @router.chosen_inline_result()
@@ -63,16 +83,22 @@ async def on_chosen_inline_result(
             logger.warning("No pending job for %s", result_id)
             return
         if chosen.inline_message_id:
+            logger.info(
+                "chosen_inline_result inline_message_id=%s result=%s",
+                chosen.inline_message_id,
+                result_id,
+            )
             await attach_inline_target_and_deliver(
                 bot,
                 result_id,
                 job,
+                inline_pending_store,
                 inline_message_id=chosen.inline_message_id,
             )
         else:
-            logger.info(
+            logger.warning(
                 "chosen_inline_result without inline_message_id for %s "
-                "(waiting for placeholder message in chat)",
+                "(enable inline feedback in @BotFather; reply_markup required)",
                 result_id,
             )
         return
@@ -153,28 +179,18 @@ async def handle_inline_query(
         return
 
     model = await user_model_store.get_model(user.id)
-
     result_id = deferred_result_id(user.id, query)
+    placeholder, p_mode = llm_text_for_inline(
+        "⏳ Генерирую ответ…", user_query=query,
+    )
+    article = _deferred_article(result_id, query, placeholder, p_mode)
 
-    if await inline_pending_store.get(result_id) is not None:
-        logger.debug("Duplicate inline_query for %s, LLM already running", result_id)
-        existing_job = await inline_pending_store.get(result_id)
-        if existing_job is not None:
-            existing_job.created_at = time.monotonic()
-        placeholder, p_mode = llm_text_for_inline(
-            "⏳ Генерирую ответ…", user_query=query,
-        )
-        title = query if len(query) <= 64 else query[:61] + "..."
+    existing = await inline_pending_store.get(result_id)
+    if existing is not None:
+        existing.created_at = time.monotonic()
         try:
             await inline_query.answer(
-                results=[InlineQueryResultArticle(
-                    id=result_id,
-                    title=title,
-                    description="Нажми — ответ появится в чате",
-                    input_message_content=InputTextMessageContent(
-                        message_text=placeholder, parse_mode=p_mode,
-                    ),
-                )],
+                results=[article],
                 cache_time=0,
                 is_personal=True,
             )
@@ -190,7 +206,9 @@ async def handle_inline_query(
         user_id=user.id,
         created_at=time.monotonic(),
     )
-    await inline_pending_store.put(result_id, job)
+    old = await inline_pending_store.put(result_id, job)
+    if old and old.llm_task and not old.llm_task.done():
+        old.llm_task.cancel()
 
     schedule_inline_llm(
         bot,
@@ -201,26 +219,16 @@ async def handle_inline_query(
         inline_pending_store,
     )
 
-    placeholder, p_mode = llm_text_for_inline(
-        "⏳ Генерирую ответ…", user_query=query,
-    )
-    title = query if len(query) <= 64 else query[:61] + "..."
-
-    results = [
-        InlineQueryResultArticle(
-            id=result_id,
-            title=title,
-            description="Нажми — ответ появится в чате",
-            input_message_content=InputTextMessageContent(
-                message_text=placeholder, parse_mode=p_mode,
-            ),
-        )
-    ]
-
     try:
-        await inline_query.answer(results=results, cache_time=0, is_personal=True)
+        await inline_query.answer(
+            results=[article],
+            cache_time=0,
+            is_personal=True,
+        )
     except TelegramBadRequest as exc:
         await inline_pending_store.pop(result_id)
+        if job.llm_task and not job.llm_task.done():
+            job.llm_task.cancel()
         if "query is too old" in str(exc).lower():
             logger.warning("Inline query expired (deferred): %r", query[:80])
             return

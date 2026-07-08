@@ -12,5 +12,5 @@ async def cmd_start(message: Message) -> None:
         "• Напиши сюда текст — отвечу в чате.\n"
         "• Inline: @имя_бота вопрос — ответ ИИ; @имя_бота model — выбор модели (сохраняется везде).\n"
         "• /model — то же меню в чате. Дефолт: OPENAI_MODEL в .env.\n"
-        "• BotFather: /setinline и включи inline feedback для выбора модели."
+        "• BotFather: /setinline и **inline feedback** (иначе inline-ответ не обновится в чате)."
     )
