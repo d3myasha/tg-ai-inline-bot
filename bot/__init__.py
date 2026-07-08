@@ -1,0 +1,1 @@
+"""Telegram inline AI bot (aiogram 3)."""
