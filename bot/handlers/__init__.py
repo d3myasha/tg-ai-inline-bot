@@ -2,6 +2,7 @@ from aiogram import Router
 
 from bot.handlers.chat import router as chat_router
 from bot.handlers.inline import router as inline_router
+from bot.handlers.inline_model_capture import router as inline_model_capture_router
 from bot.handlers.model_select import router as model_select_router
 from bot.handlers.start import router as start_router
 
@@ -10,6 +11,7 @@ def setup_routers() -> Router:
     root = Router()
     root.include_router(start_router)
     root.include_router(model_select_router)
+    root.include_router(inline_model_capture_router)
     root.include_router(chat_router)
     root.include_router(inline_router)
     return root

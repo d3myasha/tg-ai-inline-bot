@@ -39,17 +39,22 @@ class UserModelStore:
         )
         tmp.replace(self._path)
 
+    async def ensure_loaded(self) -> None:
+        async with self._lock:
+            if self._path.exists():
+                await self._load()
+
     async def get_model(self, user_id: int) -> str:
         key = str(user_id)
         async with self._lock:
-            if not self._cache and self._path.exists():
+            if self._path.exists():
                 await self._load()
             return self._cache.get(key, self._default_model)
 
     async def set_model(self, user_id: int, model: str) -> None:
         key = str(user_id)
         async with self._lock:
-            if not self._cache and self._path.exists():
+            if self._path.exists():
                 await self._load()
             self._cache[key] = model
             await self._save()
@@ -57,7 +62,7 @@ class UserModelStore:
     async def clear_model(self, user_id: int) -> None:
         key = str(user_id)
         async with self._lock:
-            if not self._cache and self._path.exists():
+            if self._path.exists():
                 await self._load()
             self._cache.pop(key, None)
             await self._save()

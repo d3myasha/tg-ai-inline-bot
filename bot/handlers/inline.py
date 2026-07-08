@@ -79,6 +79,28 @@ async def handle_inline_query(
         )
         return
 
+    if not query:
+        current = await user_model_store.get_model(user.id)
+        await inline_query.answer(
+            results=[
+                InlineQueryResultArticle(
+                    id="hint:model",
+                    title=f"Модель: {current}"[:64],
+                    description="Введите вопрос после @бота. Смена: @бот model",
+                    input_message_content=InputTextMessageContent(
+                        message_text=(
+                            f"Текущая модель: {current}. "
+                            "Выбор сохраняется для всех чатов. "
+                            "Сменить: @бот model"
+                        ),
+                    ),
+                ),
+            ],
+            cache_time=5,
+            is_personal=True,
+        )
+        return
+
     if is_model_picker_query(query):
         catalog = await model_catalog_service.fetch_catalog(
             openai_client, settings
@@ -111,7 +133,9 @@ async def handle_inline_query(
             "Не удалось получить ответ от API. Проверь ключ, base URL и модель."
         )
 
-    message_text, parse_mode = llm_text_for_inline(answer_text)
+    message_text, parse_mode = llm_text_for_inline(
+        answer_text, user_query=query
+    )
     title = query if len(query) <= 64 else query[:61] + "..."
     description = plain_preview(answer_text)
 

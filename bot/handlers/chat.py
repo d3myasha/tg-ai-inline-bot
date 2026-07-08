@@ -50,4 +50,4 @@ async def handle_text_message(
         )
         return
 
-    await reply_llm_text(message, answer_text)
+    await reply_llm_text(message, answer_text, user_query=text)

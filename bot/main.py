@@ -24,6 +24,7 @@ async def main() -> None:
     settings = get_settings()
     openai_client = create_openai_client(settings)
     user_model_store = create_user_model_store(settings)
+    await user_model_store.ensure_loaded()
     model_catalog_service = create_model_catalog_service(settings)
 
     bot = Bot(

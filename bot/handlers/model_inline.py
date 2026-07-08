@@ -12,7 +12,7 @@ INLINE_RESULT_CLEAR_DEFAULT = "mclr:default"
 def is_model_picker_query(query: str) -> bool:
     q = query.strip().lower()
     if not q:
-        return True
+        return False
     return q in ("model", "модель", "models", "модели")
 
 

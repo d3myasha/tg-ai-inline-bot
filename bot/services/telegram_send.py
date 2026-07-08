@@ -9,8 +9,16 @@ from bot.services.telegram_format import (
 )
 
 
-async def reply_llm_text(message: Message, raw_text: str) -> None:
-    truncated = truncate_for_telegram(raw_text)
+async def reply_llm_text(
+    message: Message,
+    raw_text: str,
+    *,
+    user_query: str = "",
+) -> None:
+    from bot.services.answer_format import build_llm_reply_markdown
+
+    combined = build_llm_reply_markdown(user_query, raw_text)
+    truncated = truncate_for_telegram(combined)
     formatted = format_llm_markdown_for_telegram(truncated)
     try:
         await message.answer(formatted)
@@ -21,8 +29,15 @@ async def reply_llm_text(message: Message, raw_text: str) -> None:
         )
 
 
-def llm_text_for_inline(raw_text: str) -> tuple[str, ParseMode | None]:
-    truncated = truncate_for_telegram(raw_text)
+def llm_text_for_inline(
+    raw_text: str,
+    *,
+    user_query: str = "",
+) -> tuple[str, ParseMode | None]:
+    from bot.services.answer_format import build_llm_reply_markdown
+
+    combined = build_llm_reply_markdown(user_query, raw_text)
+    truncated = truncate_for_telegram(combined)
     formatted = format_llm_markdown_for_telegram(truncated)
     if formatted:
         return formatted, ParseMode.HTML
