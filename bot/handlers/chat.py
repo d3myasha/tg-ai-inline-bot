@@ -2,7 +2,6 @@ import logging
 
 from aiogram import F, Router
 from aiogram.enums import ChatAction
-from aiogram.filters import Command
 from aiogram.types import Message
 from openai import AsyncOpenAI
 
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 router = Router(name="chat")
 
 
-@router.message(F.text, ~Command())
+@router.message(F.text)
 async def handle_text_message(
     message: Message,
     settings: Settings,
@@ -27,7 +26,7 @@ async def handle_text_message(
         return
 
     text = (message.text or "").strip()
-    if not text:
+    if not text or text.startswith("/"):
         return
 
     if not is_user_allowed(settings, message.from_user.id):
