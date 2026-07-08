@@ -13,6 +13,7 @@ from openai import AsyncOpenAI
 from bot.config import Settings
 from bot.handlers.access import is_user_allowed
 from bot.services.llm import complete_chat, truncate_for_telegram
+from bot.services.user_models import UserModelStore
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ async def handle_inline_query(
     inline_query: InlineQuery,
     settings: Settings,
     openai_client: AsyncOpenAI,
+    user_model_store: UserModelStore,
 ) -> None:
     query = (inline_query.query or "").strip()
     if not query:
@@ -54,8 +56,12 @@ async def handle_inline_query(
         )
         return
 
+    model = await user_model_store.get_model(user.id)
+
     try:
-        answer_text = await complete_chat(openai_client, settings, query)
+        answer_text = await complete_chat(
+            openai_client, settings, query, model=model
+        )
     except Exception:
         logger.exception("LLM request failed for inline query")
         answer_text = (

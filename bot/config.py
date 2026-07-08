@@ -18,6 +18,14 @@ class Settings(BaseSettings):
         validation_alias="OPENAI_BASE_URL",
     )
     openai_model: str = Field(default="gpt-4o-mini", validation_alias="OPENAI_MODEL")
+    available_models: str = Field(
+        default="",
+        validation_alias="AVAILABLE_MODELS",
+    )
+    user_models_path: str = Field(
+        default="/data/user_models.json",
+        validation_alias="USER_MODELS_PATH",
+    )
     assistant_system_prompt: str = Field(
         default="You are a helpful assistant. Answer concisely in the user's language.",
         validation_alias="ASSISTANT_SYSTEM_PROMPT",
@@ -38,6 +46,22 @@ class Settings(BaseSettings):
                 continue
             ids.add(int(part))
         return ids
+
+    def model_catalog(self) -> list[str]:
+        raw = self.available_models.strip()
+        if not raw:
+            return [self.openai_model]
+        models: list[str] = []
+        seen: set[str] = set()
+        for part in raw.split(","):
+            name = part.strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            models.append(name)
+        if self.openai_model not in seen:
+            models.insert(0, self.openai_model)
+        return models
 
 
 @lru_cache

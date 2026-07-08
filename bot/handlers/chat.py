@@ -9,6 +9,7 @@ from openai import AsyncOpenAI
 from bot.config import Settings
 from bot.handlers.access import is_user_allowed
 from bot.services.llm import complete_chat, truncate_for_telegram
+from bot.services.user_models import UserModelStore
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ async def handle_text_message(
     message: Message,
     settings: Settings,
     openai_client: AsyncOpenAI,
+    user_model_store: UserModelStore,
 ) -> None:
     if message.from_user is None:
         return
@@ -34,8 +36,12 @@ async def handle_text_message(
 
     await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
 
+    model = await user_model_store.get_model(message.from_user.id)
+
     try:
-        answer_text = await complete_chat(openai_client, settings, text)
+        answer_text = await complete_chat(
+            openai_client, settings, text, model=model
+        )
     except Exception:
         logger.exception("LLM request failed")
         await message.answer(

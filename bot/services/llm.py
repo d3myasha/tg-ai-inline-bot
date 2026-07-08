@@ -14,9 +14,11 @@ async def complete_chat(
     client: AsyncOpenAI,
     settings: Settings,
     user_text: str,
+    *,
+    model: str | None = None,
 ) -> str:
     response = await client.chat.completions.create(
-        model=settings.openai_model,
+        model=model or settings.openai_model,
         messages=[
             {"role": "system", "content": settings.assistant_system_prompt},
             {"role": "user", "content": user_text},

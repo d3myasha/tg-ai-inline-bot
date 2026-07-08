@@ -10,5 +10,6 @@ async def cmd_start(message: Message) -> None:
     await message.answer(
         "Привет!\n"
         "• Напиши сюда текст — отвечу в чате.\n"
-        "• В любом чате: @имя_бота и вопрос — ответ inline (нужен /setinline в BotFather)."
+        "• В любом чате: @имя_бота и вопрос — inline (/setinline в BotFather).\n"
+        "• /model — выбрать модель (иначе из .env: OPENAI_MODEL)."
     )

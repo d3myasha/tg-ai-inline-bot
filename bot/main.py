@@ -10,6 +10,7 @@ from bot.config import get_settings
 from bot.handlers import setup_routers
 from bot.middleware import InjectDependenciesMiddleware
 from bot.services.llm import create_openai_client
+from bot.services.user_models import create_user_model_store
 
 
 async def main() -> None:
@@ -21,6 +22,7 @@ async def main() -> None:
 
     settings = get_settings()
     openai_client = create_openai_client(settings)
+    user_model_store = create_user_model_store(settings)
 
     bot = Bot(
         token=settings.telegram_bot_token,
@@ -28,7 +30,11 @@ async def main() -> None:
     )
     dp = Dispatcher()
     dp.update.middleware(
-        InjectDependenciesMiddleware(settings=settings, openai_client=openai_client),
+        InjectDependenciesMiddleware(
+            settings=settings,
+            openai_client=openai_client,
+            user_model_store=user_model_store,
+        ),
     )
     dp.include_router(setup_routers())
 

@@ -32,8 +32,11 @@ docker compose up -d
 | `TELEGRAM_BOT_TOKEN` | да | Токен от @BotFather |
 | `OPENAI_API_KEY` | да | Ключ API |
 | `OPENAI_BASE_URL` | нет | По умолчанию `https://api.openai.com/v1` |
-| `OPENAI_MODEL` | нет | По умолчанию `gpt-4o-mini` |
+| `OPENAI_MODEL` | нет | Модель по умолчанию, если пользователь не выбрал в `/model` |
+| `AVAILABLE_MODELS` | нет | Список для меню `/model` через запятую |
 | `ALLOWED_TELEGRAM_USER_IDS` | нет | ID через запятую; пусто = все |
+
+Команда **`/model`** — кнопки выбора модели. Выбор сохраняется (volume `bot-data`, файл `/data/user_models.json`). Inline и чат используют одну выбранную модель на пользователя.
 
 ## Разработка
 
