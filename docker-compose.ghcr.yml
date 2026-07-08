@@ -1,8 +1,0 @@
-# Run pre-built image from GitHub Container Registry (after CI publish).
-# Usage: docker compose -f docker-compose.ghcr.yml up -d
-services:
-  bot:
-    image: ghcr.io/d3myasha/tg-ai-inline-bot:latest
-    restart: unless-stopped
-    env_file:
-      - .env

@@ -1,6 +1,7 @@
 services:
   bot:
-    build: .
+    image: ghcr.io/d3myasha/tg-ai-inline-bot:latest
+    pull_policy: always
     restart: unless-stopped
     env_file:
       - .env
