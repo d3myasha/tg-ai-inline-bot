@@ -49,7 +49,10 @@ async def main() -> None:
     log.info("Starting long polling (webhook disabled)")
 
     try:
-        await dp.start_polling(bot)
+        await dp.start_polling(
+            bot,
+            allowed_updates=dp.resolve_used_update_types(),
+        )
     finally:
         await openai_client.close()
         await bot.session.close()

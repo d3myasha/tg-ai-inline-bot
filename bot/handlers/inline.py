@@ -4,7 +4,6 @@ import time
 import uuid
 
 from aiogram import Bot, Router
-from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import (
     ChosenInlineResult,
@@ -21,10 +20,12 @@ from bot.handlers.model_inline import (
     build_model_picker_results,
     is_model_picker_query,
 )
-from bot.services.inline_deferred import schedule_deferred_inline
+from bot.services.inline_deferred import (
+    attach_inline_target_and_deliver,
+    schedule_inline_llm,
+)
 from bot.services.inline_pending import InlineAiJob, InlinePendingStore
 from bot.services.model_catalog import ModelCatalogService
-from bot.services.telegram_format import plain_preview
 from bot.services.telegram_send import llm_text_for_inline
 from bot.services.user_models import UserModelStore
 
@@ -35,7 +36,7 @@ router = Router(name="inline")
 DEFERRED_PREFIX = "def:"
 
 
-def _deferred_id(user_id: int, query: str) -> str:
+def deferred_result_id(user_id: int, query: str) -> str:
     digest = hashlib.sha256(f"{user_id}:{query}".encode()).hexdigest()[:24]
     return f"{DEFERRED_PREFIX}{digest}"
 
@@ -57,15 +58,23 @@ async def on_chosen_inline_result(
     result_id = chosen.result_id
 
     if result_id.startswith(DEFERRED_PREFIX):
-        if not chosen.inline_message_id:
-            logger.warning("No inline_message_id for deferred %s", result_id)
-            return
-        job = await inline_pending_store.pop(result_id)
+        job = await inline_pending_store.get(result_id)
         if job is None:
+            logger.warning("No pending job for %s", result_id)
             return
-        schedule_deferred_inline(
-            bot, chosen.inline_message_id, job, settings, openai_client,
-        )
+        if chosen.inline_message_id:
+            await attach_inline_target_and_deliver(
+                bot,
+                result_id,
+                job,
+                inline_message_id=chosen.inline_message_id,
+            )
+        else:
+            logger.info(
+                "chosen_inline_result without inline_message_id for %s "
+                "(waiting for placeholder message in chat)",
+                result_id,
+            )
         return
 
     applied = await apply_chosen_inline_model(
@@ -78,6 +87,7 @@ async def on_chosen_inline_result(
 @router.inline_query()
 async def handle_inline_query(
     inline_query: InlineQuery,
+    bot: Bot,
     settings: Settings,
     openai_client: AsyncOpenAI,
     user_model_store: UserModelStore,
@@ -144,10 +154,22 @@ async def handle_inline_query(
 
     model = await user_model_store.get_model(user.id)
 
-    result_id = _deferred_id(user.id, query)
-    await inline_pending_store.put(
+    result_id = deferred_result_id(user.id, query)
+    job = InlineAiJob(
+        query=query,
+        model=model,
+        user_id=user.id,
+        created_at=time.monotonic(),
+    )
+    await inline_pending_store.put(result_id, job)
+
+    schedule_inline_llm(
+        bot,
         result_id,
-        InlineAiJob(query=query, model=model, user_id=user.id, created_at=time.monotonic()),
+        job,
+        settings,
+        openai_client,
+        inline_pending_store,
     )
 
     placeholder, p_mode = llm_text_for_inline(

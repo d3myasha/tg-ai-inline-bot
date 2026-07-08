@@ -4,27 +4,79 @@ import logging
 from aiogram import Bot
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
+from openai import AsyncOpenAI
 
 from bot.config import Settings
 from bot.services.answer_format import build_llm_reply_markdown
-from bot.services.inline_pending import InlineAiJob
+from bot.services.inline_pending import InlineAiJob, InlinePendingStore
 from bot.services.llm import complete_chat
-from bot.services.telegram_format import format_llm_markdown_for_telegram, format_llm_plain_fallback
+from bot.services.telegram_format import format_llm_plain_fallback
 from bot.services.telegram_send import llm_text_for_inline
-from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
 
-async def run_deferred_inline_answer(
+async def _edit_target(
     bot: Bot,
-    inline_message_id: str,
+    job: InlineAiJob,
+    text: str,
+    parse_mode: ParseMode | None,
+) -> bool:
+    kwargs: dict = {"text": text}
+    if parse_mode is not None:
+        kwargs["parse_mode"] = parse_mode
+
+    if job.inline_message_id:
+        kwargs["inline_message_id"] = job.inline_message_id
+    elif job.chat_id is not None and job.message_id is not None:
+        kwargs["chat_id"] = job.chat_id
+        kwargs["message_id"] = job.message_id
+    else:
+        return False
+
+    try:
+        await bot.edit_message_text(**kwargs)
+        return True
+    except TelegramBadRequest as exc:
+        logger.warning("edit_message_text failed: %s", exc)
+        if parse_mode is not None:
+            try:
+                kwargs["text"] = format_llm_plain_fallback(
+                    build_llm_reply_markdown(job.query, job.answer or job.error or "")
+                )
+                kwargs["parse_mode"] = ParseMode.NONE
+                await bot.edit_message_text(**kwargs)
+                return True
+            except TelegramBadRequest:
+                logger.warning("plain edit also failed")
+        return False
+
+
+async def try_deliver_inline_job(bot: Bot, job: InlineAiJob) -> None:
+    async with job._deliver_lock:
+        if job.answer is None and job.error is None:
+            return
+        body = job.answer if job.answer is not None else job.error or ""
+        text, parse_mode = llm_text_for_inline(body, user_query=job.query)
+        await _edit_target(bot, job, text, parse_mode)
+
+
+async def run_inline_llm(
+    bot: Bot,
+    result_id: str,
     job: InlineAiJob,
     settings: Settings,
     openai_client: AsyncOpenAI,
+    inline_pending_store: InlinePendingStore,
 ) -> None:
+    logger.info(
+        "LLM inline start user=%s model=%s query=%r",
+        job.user_id,
+        job.model,
+        job.query[:120],
+    )
     try:
-        answer = await complete_chat(
+        job.answer = await complete_chat(
             openai_client,
             settings,
             job.query,
@@ -32,42 +84,50 @@ async def run_deferred_inline_answer(
         )
     except Exception:
         logger.exception("Deferred inline LLM failed")
-        answer = "Не удалось получить ответ от API."
+        job.error = "Не удалось получить ответ от API."
 
-    text, parse_mode = llm_text_for_inline(answer, user_query=job.query)
-    try:
-        await bot.edit_message_text(
-            text=text,
-            inline_message_id=inline_message_id,
-            parse_mode=parse_mode or ParseMode.HTML,
-        )
-    except TelegramBadRequest as exc:
-        logger.warning("editMessageText failed for inline %s: %s", inline_message_id, exc)
-        # Fallback without parse mode
-        combined = build_llm_reply_markdown(job.query, answer)
-        try:
-            await bot.edit_message_text(
-                text=format_llm_plain_fallback(combined),
-                inline_message_id=inline_message_id,
-                parse_mode=ParseMode.NONE,
-            )
-        except TelegramBadRequest:
-            logger.warning("Plain edit also failed for inline %s", inline_message_id)
+    stored = await inline_pending_store.get(result_id)
+    if stored is not job:
+        return
+
+    await try_deliver_inline_job(bot, job)
+    if job.inline_message_id or (job.chat_id is not None and job.message_id is not None):
+        await inline_pending_store.pop(result_id)
 
 
-def schedule_deferred_inline(
+def schedule_inline_llm(
     bot: Bot,
-    inline_message_id: str,
+    result_id: str,
     job: InlineAiJob,
     settings: Settings,
     openai_client: AsyncOpenAI,
+    inline_pending_store: InlinePendingStore,
 ) -> None:
     asyncio.create_task(
-        run_deferred_inline_answer(
+        run_inline_llm(
             bot,
-            inline_message_id,
+            result_id,
             job,
             settings,
             openai_client,
+            inline_pending_store,
         )
     )
+
+
+async def attach_inline_target_and_deliver(
+    bot: Bot,
+    result_id: str,
+    job: InlineAiJob,
+    *,
+    inline_message_id: str | None = None,
+    chat_id: int | None = None,
+    message_id: int | None = None,
+) -> None:
+    if inline_message_id:
+        job.inline_message_id = inline_message_id
+    if chat_id is not None:
+        job.chat_id = chat_id
+    if message_id is not None:
+        job.message_id = message_id
+    await try_deliver_inline_job(bot, job)

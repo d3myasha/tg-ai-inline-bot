@@ -37,6 +37,12 @@ async def handle_text_message(
     await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
 
     model = await user_model_store.get_model(message.from_user.id)
+    logger.info(
+        "LLM chat start user=%s model=%s text=%r",
+        message.from_user.id,
+        model,
+        text[:120],
+    )
 
     try:
         answer_text = await complete_chat(
