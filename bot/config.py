@@ -53,7 +53,10 @@ class Settings(BaseSettings):
             part = part.strip()
             if not part:
                 continue
-            ids.add(int(part))
+            try:
+                ids.add(int(part))
+            except ValueError:
+                continue
         return ids
 
 @lru_cache

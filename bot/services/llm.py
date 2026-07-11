@@ -24,6 +24,7 @@ async def complete_chat(
             {"role": "user", "content": user_text},
         ],
         temperature=0.7,
+        timeout=120,
     )
     choice = response.choices[0].message.content
     if not choice:

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 router = Router(name="chat")
 
 
-@router.message(F.text)
+@router.message(F.text, ~F.text.startswith("/"))
 async def handle_text_message(
     message: Message,
     settings: Settings,
@@ -27,7 +27,7 @@ async def handle_text_message(
         return
 
     text = (message.text or "").strip()
-    if not text or text.startswith("/"):
+    if not text:
         return
 
     if not is_user_allowed(settings, message.from_user.id):

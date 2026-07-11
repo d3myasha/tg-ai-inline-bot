@@ -82,11 +82,3 @@ def format_llm_markdown_for_telegram(text: str) -> str:
 
 def format_llm_plain_fallback(text: str) -> str:
     return html_lib.escape(text)
-
-
-def plain_preview(text: str, max_len: int = 256) -> str:
-    plain = re.sub(r"[#*_`>\[\]()]", "", text)
-    plain = re.sub(r"\s+", " ", plain).strip()
-    if len(plain) <= max_len:
-        return plain
-    return plain[: max_len - 3] + "..."

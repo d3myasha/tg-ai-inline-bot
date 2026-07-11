@@ -66,7 +66,7 @@ async def _edit_target(
 
 
 async def try_deliver_inline_job(bot: Bot, job: InlineAiJob) -> bool:
-    async with job._deliver_lock:
+    async with job.deliver_lock:
         if job.answer is None and job.error is None:
             return False
         body = job.answer if job.answer is not None else job.error or ""

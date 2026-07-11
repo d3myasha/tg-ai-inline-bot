@@ -15,7 +15,7 @@ class InlineAiJob:
     chat_id: int | None = None
     message_id: int | None = None
     llm_task: asyncio.Task[None] | None = field(default=None, repr=False)
-    _deliver_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
+    deliver_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
 
 class InlinePendingStore:

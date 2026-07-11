@@ -1,6 +1,7 @@
 import logging
 
 from aiogram import F, Router
+from aiogram.enums import ChatAction
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from openai import AsyncOpenAI
@@ -100,7 +101,7 @@ async def cmd_model(
         await message.answer("У вас нет доступа к этому боту.")
         return
 
-    await message.bot.send_chat_action(message.chat.id, "typing")
+    await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
     catalog = await model_catalog_service.fetch_catalog(openai_client, settings)
     current = await user_model_store.get_model(message.from_user.id)
     await message.answer(
@@ -159,6 +160,31 @@ async def on_model_refresh(
     await callback.answer("Список обновлён")
 
 
+@router.callback_query(F.data == CALLBACK_DEFAULT)
+async def on_model_default(
+    callback: CallbackQuery,
+    settings: Settings,
+    openai_client: AsyncOpenAI,
+    user_model_store: UserModelStore,
+    model_catalog_service: ModelCatalogService,
+) -> None:
+    if callback.from_user is None or callback.message is None:
+        await callback.answer()
+        return
+    if not is_user_allowed(settings, callback.from_user.id):
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+
+    await user_model_store.clear_model(callback.from_user.id)
+    chosen = settings.openai_model
+    catalog = await model_catalog_service.fetch_catalog(openai_client, settings)
+    await callback.message.edit_text(
+        _status_text(chosen, settings, catalog, 0, callback.from_user.id),
+        reply_markup=_keyboard(catalog, chosen, settings, 0),
+    )
+    await callback.answer(f"Выбрано: {chosen}")
+
+
 @router.callback_query(F.data.regexp(r"^model:\d+$"))
 async def on_model_pick(
     callback: CallbackQuery,
@@ -177,19 +203,14 @@ async def on_model_pick(
     data = callback.data or ""
     catalog = await model_catalog_service.fetch_catalog(openai_client, settings)
 
-    if data == CALLBACK_DEFAULT:
-        await user_model_store.clear_model(callback.from_user.id)
-        chosen = settings.openai_model
-        page = 0
-    else:
-        try:
-            index = int(data.removeprefix(CALLBACK_PREFIX))
-            chosen = catalog[index]
-            page = index // PAGE_SIZE
-        except (ValueError, IndexError):
-            await callback.answer("Неверная кнопка", show_alert=True)
-            return
-        await user_model_store.set_model(callback.from_user.id, chosen)
+    try:
+        index = int(data.removeprefix(CALLBACK_PREFIX))
+        chosen = catalog[index]
+        page = index // PAGE_SIZE
+    except (ValueError, IndexError):
+        await callback.answer("Неверная кнопка", show_alert=True)
+        return
+    await user_model_store.set_model(callback.from_user.id, chosen)
 
     await callback.message.edit_text(
         _status_text(chosen, settings, catalog, page, callback.from_user.id),
