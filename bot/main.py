@@ -13,6 +13,7 @@ from bot.services.dembel import DembelService
 from bot.services.llm import create_openai_client
 from bot.services.inline_pending import InlinePendingStore
 from bot.services.model_catalog import create_model_catalog_service
+from bot.services.runtime_settings import RuntimeSettingsStore
 from bot.services.user_models import create_user_model_store
 
 
@@ -24,6 +25,12 @@ async def main() -> None:
     )
 
     settings = get_settings()
+
+    # ── Load runtime settings overlay ────────────────────────────
+    runtime_settings = RuntimeSettingsStore()
+    runtime_settings.load()
+    runtime_settings.apply_to_settings(settings)
+
     openai_client = create_openai_client(settings)
     user_model_store = create_user_model_store(settings)
     await user_model_store.ensure_loaded()
@@ -42,6 +49,7 @@ async def main() -> None:
             user_model_store=user_model_store,
             model_catalog_service=model_catalog_service,
             inline_pending_store=inline_pending_store,
+            runtime_settings=runtime_settings,
         ),
     )
     dp.include_router(setup_routers())

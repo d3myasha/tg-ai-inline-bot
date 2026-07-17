@@ -7,12 +7,14 @@ from bot.handlers.inline_model_capture import router as inline_model_capture_rou
 from bot.handlers.inline_placeholder import router as inline_placeholder_router
 from bot.handlers.inline_noop import router as inline_noop_router
 from bot.handlers.model_select import router as model_select_router
+from bot.handlers.settings import router as settings_router
 from bot.handlers.start import router as start_router
 
 
 def setup_routers() -> Router:
     root = Router()
     root.include_router(ask_router)
+    root.include_router(settings_router)
     root.include_router(start_router)
     root.include_router(inline_noop_router)
     root.include_router(model_select_router)

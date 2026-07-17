@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 from bot.config import Settings
 from bot.services.inline_pending import InlinePendingStore
 from bot.services.model_catalog import ModelCatalogService
+from bot.services.runtime_settings import RuntimeSettingsStore
 from bot.services.user_models import UserModelStore
 
 
@@ -19,12 +20,14 @@ class InjectDependenciesMiddleware(BaseMiddleware):
         user_model_store: UserModelStore,
         model_catalog_service: ModelCatalogService,
         inline_pending_store: InlinePendingStore,
+        runtime_settings: RuntimeSettingsStore,
     ) -> None:
         self._settings = settings
         self._openai_client = openai_client
         self._user_model_store = user_model_store
         self._model_catalog_service = model_catalog_service
         self._inline_pending_store = inline_pending_store
+        self._runtime_settings = runtime_settings
 
     async def __call__(
         self,
@@ -37,4 +40,5 @@ class InjectDependenciesMiddleware(BaseMiddleware):
         data["user_model_store"] = self._user_model_store
         data["model_catalog_service"] = self._model_catalog_service
         data["inline_pending_store"] = self._inline_pending_store
+        data["runtime_settings"] = self._runtime_settings
         return await handler(event, data)

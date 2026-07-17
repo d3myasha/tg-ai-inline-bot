@@ -13,9 +13,7 @@ async def cmd_start(message: Message) -> None:
         "• В группе используй <code>/ai вопрос</code> или "
         "<code>/ask вопрос</code>.\n"
         "• Inline: @имя_бота вопрос; @имя_бота model — выбор модели.\n"
-        "• /model — меню моделей. Выбор <b>только для вашего Telegram user_id</b> "
-        "(личка, группы, inline — одна модель на аккаунт, не на чат).\n"
-        "• Дефолт без выбора: OPENAI_MODEL в .env.\n"
-        "• BotFather: /setinline и <b>inline feedback</b> "
-        "(иначе inline-ответ не обновится в чате)."
+        "• /model — меню моделей.\n"
+        "• /settings — все настройки (API, модель, дембель).\n"
+        "• /start — это сообщение."
     )
