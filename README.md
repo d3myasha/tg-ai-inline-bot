@@ -1,6 +1,6 @@
 # tg-ai-inline-bot
 
-Telegram-бот с OpenAI-совместимым API: **чат** (личка/группа) и **inline** `@бот вопрос` (aiogram 3, long polling).
+Telegram-бот с OpenAI-совместимым API: **чат** (личка/группа через `/ai`), **inline** `@бот вопрос` (aiogram 3, long polling).
 
 ## Запуск за 3 шага
 
