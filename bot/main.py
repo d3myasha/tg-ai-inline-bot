@@ -46,7 +46,7 @@ async def main() -> None:
     )
     dp.include_router(setup_routers())
 
-    dembel_service = DembelService(bot, settings)
+    dembel_service = DembelService(bot, openai_client, settings)
     await dembel_service.start()
 
     log = logging.getLogger(__name__)

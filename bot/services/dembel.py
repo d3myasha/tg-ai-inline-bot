@@ -1,39 +1,17 @@
 import asyncio
 import json
 import logging
-import random
 import time
 from pathlib import Path
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
+from openai import AsyncOpenAI
 
 from bot.config import Settings
+from bot.services.llm import complete_chat
 
 logger = logging.getLogger(__name__)
-
-DEMBEL_QUOTES = [
-    "🇷🇺 Дембель — это не просто слово, это состояние души.",
-    "🇷🇺 Кто не служил, тот не поймёт, что такое дембель.",
-    "🇷🇺 Дембель — это когда ты уже не солдат, но ещё не гражданский.",
-    "🇷🇺 Солдат спит — служба идёт. Дембель спит — дембель идёт.",
-    "🇷🇺 Дембель неизбежен, как налоги.",
-    "🇷🇺 У дембеля выходных не бывает — бывает только дембель.",
-    "🇷🇺 100 дней до приказа — ещё не дембель, но уже и не солдат.",
-    "🇷🇺 Дембель — это праздник, который всегда с тобой.",
-    "🇷🇺 Три года — не три дня, а дембель — один.",
-    "🇷🇺 Чем ближе дембель, тем громче оркестр.",
-    "🇷🇺 Дембель — это момент, когда ты понимаешь, что Родина тебя больше не ищет.",
-    "🇷🇺 Дембельские 100 дней считает каждый солдат. А мы считаем каждый день!",
-    "🇷🇺 Дембель — это финишная прямая. Добежать бы…",
-    "🇷🇺 Чемодан — на выход! Дембель — на вход!",
-    "🇷🇺 Отслужил — и спи спокойно. Дембель всё расставил по местам.",
-    "🇷🇺 Дембельский аккорд — последняя песня солдата.",
-    "🇷🇺 Дембель — это когда дембельнулся и забыл, как по стойке смирно стоять.",
-    "🇷🇺 У каждого солдата есть мечта. И имя ей — Дембель.",
-    "🇷🇺 ДМБ — это не фильм, это жизнь после армии.",
-    "🇷🇺 С каждым днём всё ближе к дому, с каждым днём всё дальше от казармы.",
-]
 
 _STATE_FILE = "/data/dembel_state.json"
 
@@ -95,8 +73,11 @@ class DembelState:
 
 
 class DembelService:
-    def __init__(self, bot: Bot, settings: Settings) -> None:
+    def __init__(
+        self, bot: Bot, openai_client: AsyncOpenAI, settings: Settings,
+    ) -> None:
         self._bot = bot
+        self._openai_client = openai_client
         self._settings = settings
         self._state = DembelState()
         self._task: asyncio.Task[None] | None = None
@@ -176,9 +157,22 @@ class DembelService:
             )
 
     async def _send_quote(self) -> None:
-        quote = random.choice(DEMBEL_QUOTES)
         days_left = self._state.current_days
         sign = "🎉 Дембель!" if days_left == 0 else f"📆 Осталось {days_left} дн."
+        try:
+            quote = await complete_chat(
+                self._openai_client,
+                self._settings,
+                (
+                    "Напиши короткую вдохновляющую цитату про дембель из армии. "
+                    "Одним абзацем, максимум 2 предложения. "
+                    "На русском, в стиле армейского юмора."
+                ),
+                model=self._settings.openai_model,
+            )
+        except Exception:
+            logger.exception("Failed to generate dembel quote via LLM")
+            quote = "🇷🇺 Дембель — это состояние души!"
         text = f"{sign}\n\n{quote}"
         try:
             await self._bot.send_message(
