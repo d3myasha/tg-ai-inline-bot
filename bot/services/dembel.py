@@ -127,7 +127,7 @@ class DembelService:
     async def _run_loop(self) -> None:
         while True:
             try:
-                await asyncio.sleep(3600)  # every hour
+                await asyncio.sleep(self._settings.dembel_check_interval_seconds)
                 await self._check_and_update()
             except asyncio.CancelledError:
                 raise

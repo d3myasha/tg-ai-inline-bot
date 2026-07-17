@@ -62,6 +62,11 @@ class Settings(BaseSettings):
         validation_alias="DEMBEL_DAYS",
         description="Starting countdown value (e.g. 347)",
     )
+    dembel_check_interval_seconds: int = Field(
+        default=3600,
+        validation_alias="DEMBEL_CHECK_INTERVAL_SECONDS",
+        description="How often to check if a new day started (seconds)",
+    )
 
     def allowed_user_id_set(self) -> set[int] | None:
         raw = self.allowed_telegram_user_ids.strip()
