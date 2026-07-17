@@ -9,6 +9,7 @@ from aiogram.enums import ParseMode
 from bot.config import get_settings
 from bot.handlers import setup_routers
 from bot.middleware import InjectDependenciesMiddleware
+from bot.services.dembel import DembelService
 from bot.services.llm import create_openai_client
 from bot.services.inline_pending import InlinePendingStore
 from bot.services.model_catalog import create_model_catalog_service
@@ -45,6 +46,9 @@ async def main() -> None:
     )
     dp.include_router(setup_routers())
 
+    dembel_service = DembelService(bot, settings)
+    await dembel_service.start()
+
     log = logging.getLogger(__name__)
     log.info("Starting long polling (webhook disabled)")
 
@@ -54,6 +58,7 @@ async def main() -> None:
             allowed_updates=dp.resolve_used_update_types(),
         )
     finally:
+        await dembel_service.stop()
         await openai_client.close()
         await bot.session.close()
 

@@ -44,6 +44,25 @@ class Settings(BaseSettings):
         validation_alias="ALLOWED_TELEGRAM_USER_IDS",
     )
 
+    # Dembel countdown
+    dembel_enabled: bool = Field(
+        default=False,
+        validation_alias="DEMBEL_ENABLED",
+    )
+    dembel_user_id: int = Field(
+        default=0,
+        validation_alias="DEMBEL_USER_ID",
+    )
+    dembel_chat_id: int = Field(
+        default=0,
+        validation_alias="DEMBEL_CHAT_ID",
+    )
+    dembel_days: int = Field(
+        default=0,
+        validation_alias="DEMBEL_DAYS",
+        description="Starting countdown value (e.g. 347)",
+    )
+
     def allowed_user_id_set(self) -> set[int] | None:
         raw = self.allowed_telegram_user_ids.strip()
         if not raw:
