@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 
 from aiogram import Bot
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramNetworkError
 from openai import AsyncOpenAI
 
 from bot.config import Settings
@@ -93,9 +93,6 @@ class DembelService:
             self._state.save()
             logger.info("Dembel initialised at %d days", self._state.current_days)
 
-        # Check on startup
-        await self._check_and_update()
-
         self._task = asyncio.create_task(self._run_loop())
         logger.info(
             "Dembel service started, %d days remaining, interval=%ds",
@@ -158,7 +155,7 @@ class DembelService:
                 custom_title=title,
             )
             logger.info("Custom title updated to %s", title)
-        except TelegramBadRequest as e:
+        except Exception as e:
             logger.warning(
                 "Failed to set custom title %s: %s. "
                 "Make sure the bot is admin in the group and the user is an admin.",
@@ -190,5 +187,5 @@ class DembelService:
                 text=text,
             )
             logger.info("Dembel quote sent to chat %s", self._settings.dembel_chat_id)
-        except TelegramBadRequest as e:
+        except Exception as e:
             logger.warning("Failed to send dembel quote: %s", e)
