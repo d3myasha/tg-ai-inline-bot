@@ -26,7 +26,6 @@ _DEFAULTS: dict[str, Any] = {
     "dembel_user_id": 0,
     "dembel_chat_id": 0,
     "dembel_days": 0,
-    "dembel_check_interval_seconds": 3600,
 }
 
 

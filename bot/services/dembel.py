@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-import time
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from aiogram import Bot
@@ -14,30 +14,30 @@ from bot.services.llm import complete_chat
 logger = logging.getLogger(__name__)
 
 _STATE_FILE = "/data/dembel_state.json"
+_CHECK_INTERVAL = 3600  # check every hour, decrement once per day
 
 
 class DembelState:
     def __init__(self, path: str = _STATE_FILE) -> None:
         self._path = Path(path)
         self.current_days: int = 0
-        self.last_updated: float = 0.0  # Unix timestamp
+        self.last_updated: str = ""  # YYYY-MM-DD
 
     def load(self) -> None:
         if not self._path.exists():
             logger.info("No dembel state file, starting fresh")
             self.current_days = 0
-            self.last_updated = 0.0
+            self.last_updated = ""
             return
         try:
             raw = self._path.read_text(encoding="utf-8")
             data = json.loads(raw)
             self.current_days = int(data.get("current_days", 0))
-            last = data.get("last_updated", 0)
-            self.last_updated = float(last) if last else 0.0
+            self.last_updated = str(data.get("last_updated", ""))
         except (OSError, json.JSONDecodeError, ValueError):
             logger.exception("Failed to load dembel state")
             self.current_days = 0
-            self.last_updated = 0.0
+            self.last_updated = ""
 
     def save(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -49,12 +49,12 @@ class DembelState:
         tmp.write_text(content, encoding="utf-8")
         tmp.replace(self._path)
 
-    def should_update(self, min_interval: float) -> bool:
-        """Return True if min_interval seconds passed since last update and days > 0."""
-        return (
-            self.current_days > 0
-            and (time.time() - self.last_updated) >= min_interval
-        )
+    def should_update(self) -> bool:
+        """Return True if a new calendar day has started and days > 0."""
+        if self.current_days <= 0:
+            return False
+        today = date.today().isoformat()
+        return self.last_updated != today
 
     def apply_update(self) -> int | None:
         """Decrement and save. Returns new count or None if already at zero."""
@@ -62,7 +62,7 @@ class DembelState:
             return None
         old = self.current_days
         self.current_days -= 1
-        self.last_updated = time.time()
+        self.last_updated = date.today().isoformat()
         self.save()
         logger.info("Dembel: %d → %d", old, self.current_days)
         return self.current_days
@@ -89,15 +89,15 @@ class DembelService:
         self._state.load()
         if self._state.current_days == 0 and self._settings.dembel_days > 0:
             self._state.current_days = self._settings.dembel_days
-            self._state.last_updated = 0.0  # force first update
+            self._state.last_updated = ""  # force first update
             self._state.save()
             logger.info("Dembel initialised at %d days", self._state.current_days)
 
         self._task = asyncio.create_task(self._run_loop())
         logger.info(
-            "Dembel service started, %d days remaining, interval=%ds",
+            "Dembel service started, %d days remaining, check every %ds",
             self._state.current_days,
-            self._settings.dembel_check_interval_seconds,
+            _CHECK_INTERVAL,
         )
 
     async def stop(self) -> None:
@@ -121,7 +121,7 @@ class DembelService:
     async def _run_loop(self) -> None:
         while True:
             try:
-                await asyncio.sleep(self._settings.dembel_check_interval_seconds)
+                await asyncio.sleep(_CHECK_INTERVAL)
                 await self._check_and_update()
             except asyncio.CancelledError:
                 raise
@@ -129,8 +129,7 @@ class DembelService:
                 logger.exception("Dembel loop error")
 
     async def _check_and_update(self) -> None:
-        interval = self._settings.dembel_check_interval_seconds
-        if not self._state.should_update(interval):
+        if not self._state.should_update():
             return
         new_count = self._state.apply_update()
         if new_count is None:

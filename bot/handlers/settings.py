@@ -30,14 +30,13 @@ _SETTING_LABELS: dict[str, str] = {
     "dembel_user_id": "👤 Дембель: user_id",
     "dembel_chat_id": "💬 Дембель: chat_id",
     "dembel_days": "📆 Дембель: дней",
-    "dembel_check_interval_seconds": "⏱ Дембель: интервал (с)",
     "allowed_telegram_user_ids": "👥 Разрешённые ID",
 }
 
 _CATEGORIES: dict[str, tuple[str, ...]] = {
     "ai": ("openai_api_key", "openai_base_url", "openai_model", "assistant_system_prompt", "available_models"),
     "access": ("allowed_telegram_user_ids",),
-    "dembel": ("dembel_enabled", "dembel_user_id", "dembel_chat_id", "dembel_days", "dembel_check_interval_seconds"),
+    "dembel": ("dembel_enabled", "dembel_user_id", "dembel_chat_id", "dembel_days"),
 }
 
 _CATEGORY_LABELS = {
@@ -229,7 +228,6 @@ def _input_hint(key: str) -> str:
         "dembel_user_id": "Введите Telegram user_id для дембель-счётчика:",
         "dembel_chat_id": "Введите chat_id группы для дембель-счётчика:",
         "dembel_days": "Введите начальное количество дней (например 347):",
-        "dembel_check_interval_seconds": "Введите интервал проверки в секундах (60 = минута, 3600 = час):",
         "allowed_telegram_user_ids": "Введите ID пользователей через запятую (пусто = все):",
     }
     return hints.get(key, "Введите новое значение:")
@@ -259,7 +257,7 @@ async def catch_setting_value(
         return
 
     # Validate and convert
-    if key in ("models_cache_ttl_seconds", "dembel_user_id", "dembel_chat_id", "dembel_days", "dembel_check_interval_seconds"):
+    if key in ("models_cache_ttl_seconds", "dembel_user_id", "dembel_chat_id", "dembel_days"):
         try:
             val = int(text)
         except ValueError:

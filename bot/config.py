@@ -51,9 +51,6 @@ class Settings(BaseSettings):
     dembel_user_id: int = Field(default=0, validation_alias="DEMBEL_USER_ID")
     dembel_chat_id: int = Field(default=0, validation_alias="DEMBEL_CHAT_ID")
     dembel_days: int = Field(default=0, validation_alias="DEMBEL_DAYS")
-    dembel_check_interval_seconds: int = Field(
-        default=3600, validation_alias="DEMBEL_CHECK_INTERVAL_SECONDS",
-    )
 
     def apply_overlay(self, data: dict[str, Any]) -> None:
         """Overwrite fields from a runtime settings dict."""
