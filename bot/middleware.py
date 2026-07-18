@@ -21,6 +21,7 @@ class InjectDependenciesMiddleware(BaseMiddleware):
         model_catalog_service: ModelCatalogService,
         inline_pending_store: InlinePendingStore,
         runtime_settings: RuntimeSettingsStore,
+        dembel_service: "DembelService",
     ) -> None:
         self._settings = settings
         self._openai_client = openai_client
@@ -28,6 +29,7 @@ class InjectDependenciesMiddleware(BaseMiddleware):
         self._model_catalog_service = model_catalog_service
         self._inline_pending_store = inline_pending_store
         self._runtime_settings = runtime_settings
+        self._dembel_service = dembel_service
 
     async def __call__(
         self,
@@ -41,4 +43,5 @@ class InjectDependenciesMiddleware(BaseMiddleware):
         data["model_catalog_service"] = self._model_catalog_service
         data["inline_pending_store"] = self._inline_pending_store
         data["runtime_settings"] = self._runtime_settings
+        data["dembel_service"] = self._dembel_service
         return await handler(event, data)

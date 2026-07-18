@@ -110,6 +110,16 @@ class DembelService:
                 await self._task
             except asyncio.CancelledError:
                 pass
+        self._task = None
+
+    @property
+    def is_running(self) -> bool:
+        return self._task is not None and not self._task.done()
+
+    async def restart(self) -> None:
+        """Stop the current loop (if running) and start a fresh one."""
+        await self.stop()
+        await self.start()
 
     async def _run_loop(self) -> None:
         while True:

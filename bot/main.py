@@ -37,11 +37,15 @@ async def main() -> None:
     model_catalog_service = create_model_catalog_service(settings)
     inline_pending_store = InlinePendingStore(ttl_seconds=600)
 
+
     bot = Bot(
         token=settings.telegram_bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     dp = Dispatcher()
+    dembel_service = DembelService(bot, openai_client, settings)
+    await dembel_service.start()
+
     dp.update.middleware(
         InjectDependenciesMiddleware(
             settings=settings,
@@ -50,12 +54,11 @@ async def main() -> None:
             model_catalog_service=model_catalog_service,
             inline_pending_store=inline_pending_store,
             runtime_settings=runtime_settings,
+            dembel_service=dembel_service,
         ),
     )
     dp.include_router(setup_routers())
 
-    dembel_service = DembelService(bot, openai_client, settings)
-    await dembel_service.start()
 
     log = logging.getLogger(__name__)
     log.info("Starting long polling (webhook disabled)")

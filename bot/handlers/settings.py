@@ -7,6 +7,7 @@ from openai import AsyncOpenAI
 
 from bot.config import Settings
 from bot.handlers.access import is_user_allowed
+from bot.services.dembel import DembelService
 from bot.services.runtime_settings import RuntimeSettingsStore
 
 logger = logging.getLogger(__name__)
@@ -158,7 +159,9 @@ async def on_category(
 @router.callback_query(F.data.startswith("setval:"))
 async def on_setting_pick(
     callback: CallbackQuery,
+    settings: Settings,
     runtime_settings: RuntimeSettingsStore,
+    dembel_service: DembelService,
 ) -> None:
     user = callback.from_user
     if user is None:
@@ -170,8 +173,14 @@ async def on_setting_pick(
     if key == "dembel_enabled":
         # Toggle
         current = runtime_settings.get(key, False)
-        runtime_settings.set(key, not current)
-        status = "включён" if not current else "выключен"
+        new_val = not current
+        runtime_settings.set(key, new_val)
+        settings.apply_overlay(runtime_settings.data)
+        status = "включён" if new_val else "выключен"
+        if new_val:
+            await dembel_service.restart()
+        else:
+            await dembel_service.stop()
         await callback.answer(f"Дембель {status}")
         # Refresh the category view
         cat = _find_category(key)
@@ -234,6 +243,7 @@ async def catch_setting_value(
     settings: Settings,
     runtime_settings: RuntimeSettingsStore,
     openai_client: AsyncOpenAI,
+    dembel_service: DembelService,
 ) -> None:
     user = message.from_user
     if user is None:
@@ -269,6 +279,12 @@ async def catch_setting_value(
         elif key == "openai_base_url":
             openai_client.base_url = val
         logger.info("Runtime: %s updated on live client", key)
+
+    # If a dembel setting changed (toggle handled in on_setting_pick), restart service
+    if key.startswith("dembel") and key != "dembel_enabled":
+        if settings.dembel_enabled:
+            await dembel_service.restart()
+        logger.info("Runtime: dembel setting %s updated, dembel_enabled=%s", key, settings.dembel_enabled)
 
     await message.answer(f"✅ <b>{_SETTING_LABELS.get(key, key)}</b> обновлено!\n\n"
                          f"Новое значение: <code>{_fmt_val(runtime_settings, key)}</code>")
