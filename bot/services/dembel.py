@@ -118,6 +118,18 @@ class DembelService:
         await self.stop()
         await self.start()
 
+    async def trigger_now(self) -> None:
+        """Force decrement, update title and send quote immediately."""
+        if not self._settings.dembel_enabled or self._state.current_days <= 0:
+            return
+        self._state.apply_update()
+        await self._apply_title()
+        await self._send_quote()
+
+    @property
+    def days_remaining(self) -> int:
+        return self._state.current_days
+
     async def _run_loop(self) -> None:
         while True:
             try:
