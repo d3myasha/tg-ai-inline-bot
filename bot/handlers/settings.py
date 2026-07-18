@@ -280,6 +280,8 @@ async def catch_setting_value(
 
     # If a dembel setting changed (toggle handled in on_setting_pick), restart service
     if key.startswith("dembel") and key != "dembel_enabled":
+        if key == "dembel_days":
+            dembel_service.set_days(val)
         if settings.dembel_enabled:
             await dembel_service.restart()
         logger.info("Runtime: dembel setting %s updated, dembel_enabled=%s", key, settings.dembel_enabled)

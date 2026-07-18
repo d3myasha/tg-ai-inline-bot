@@ -126,6 +126,13 @@ class DembelService:
         await self._apply_title()
         await self._send_quote()
 
+    def set_days(self, days: int) -> None:
+        """Reset the countdown to a specific number of days."""
+        self._state.current_days = max(0, days)
+        self._state.last_updated = ""
+        self._state.save()
+        logger.info("Dembel days reset to %d", self._state.current_days)
+
     @property
     def days_remaining(self) -> int:
         return self._state.current_days
